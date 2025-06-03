@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>n8n Migration Tool</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        .container { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1, h2 { color: #555; }
+        ul { list-style-type: none; padding: 0; }
+        li { background-color: #eee; margin-bottom: 5px; padding: 10px; border-radius: 4px; display: flex; align-items: center; }
+        li input[type="checkbox"] { margin-right: 10px; }
+        .button { background-color: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-top:10px; }
+        .button:hover { background-color: #0056b3; }
+        .button-secondary { background-color: #6c757d; }
+        .button-secondary:hover { background-color: #545b62; }
+        .file-select { padding: 8px; margin-top: 5px; border-radius: 4px; border: 1px solid #ccc; width: 100%; box-sizing: border-box; }
+        .message-area { margin-top: 20px; padding: 15px; border-radius: 4px; }
+        .message-area.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .message-area.error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background-color: #fff3cd; color: #856404; padding: 10px; border-radius: 4px; margin-bottom: 15px; border: 1px solid #ffeeba;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>n8n Migration Tool</h1>
+
+        {% if not n8n_key_set %}
+            <div class="warning">
+                <strong>Warning:</strong> <code>N8N_TARGET_ENCRYPTION_KEY</code> is not set in the environment for the UI service. 
+                Imports will likely fail, especially for credentials or encrypted workflows. 
+                Please set this in your <code>.env</code> file and restart the services.
+            </div>
+        {% endif %}
+
+        <div id="workflow-message-area" class="message-area" style="display:none;"></div>
+        <div id="credential-message-area" class="message-area" style="display:none;"></div>
+
+        <h2>Import Workflows</h2>
+        <form id="import-workflows-form">
+            <p>Select workflow backup files (.json) to import:</p>
+            {% set workflow_items = backup_items | selectattr('file_type', 'equalto', 'workflow') | list %}
+            {% if workflow_items %}
+                <ul>
+                {% for item in workflow_items %}
+                    <li>
+                        <input type="checkbox" name="workflow_files" value="{{ item.filename }}" id="wf-{{ loop.index }}">
+                        <label for="wf-{{ loop.index }}">{{ item.displayName }} ({{ item.filename }})</label>
+                    </li>
+                {% endfor %}
+                </ul>
+                <button type="submit" class="button">Import Selected Workflows</button>
+            {% else %}
+                <p>No workflow backup files found in <code>n8n_backups</code> directory. Add your exported workflow .json files there.</p>
+            {% endif %}
+        </form>
+
+        <hr style="margin: 30px 0;">
+
+        <h2>Import Credentials</h2>
+        <form id="import-credentials-form">
+            <p>Select the credentials backup file (.json) to import:</p>
+            {% set credential_items = backup_items | selectattr('file_type', 'equalto', 'credential') | list %}
+            {% if credential_items %}
+                <select name="credential_file" class="file-select">
+                    <option value="">-- Select Credentials File --</option>
+                    {% for item in credential_items %}
+                        <option value="{{ item.filename }}">{{ item.displayName }} ({{ item.filename }})</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="button button-secondary">Import Credentials</button>
+            {% else %}
+                <p>No credential backup files found. Cannot select credentials file.</p>
+            {% endif %}
+        </form>
+    </div>
+
+    <script>
+        function displayMessage(areaId, message, isSuccess) {
+            const area = document.getElementById(areaId);
+            area.innerHTML = message;
+            area.className = 'message-area ' + (isSuccess ? 'success' : 'error');
+            area.style.display = 'block';
+        }
+
+        document.getElementById('import-workflows-form').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const formData = new FormData(this);
+            const response = await fetch('/import-workflows', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+            
+            let messageHtml = '<h3>Workflow Import Results:</h3><ul>';
+            if (result.results && Array.isArray(result.results)) {
+                result.results.forEach(item => {
+                    messageHtml += `<li><strong>${item.file}:</strong> ${item.success ? '✅ Success' : '❌ Error'} - ${item.message}</li>`;
+                });
+            } else {
+                 messageHtml += `<li>${result.message || 'An unexpected error occurred.'}</li>`;
+            }
+            messageHtml += '</ul>';
+            displayMessage('workflow-message-area', messageHtml, result.success);
+        });
+
+        document.getElementById('import-credentials-form').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const formData = new FormData(this);
+            const response = await fetch('/import-credentials', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+            let messageHtml = `<strong>Credentials Import:</strong> ${result.success ? '✅ Success' : '❌ Error'} - ${result.message}`;
+            displayMessage('credential-message-area', messageHtml, result.success);
+        });
+    </script>
+</body>
+</html>

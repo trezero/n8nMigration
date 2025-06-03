@@ -1,0 +1,53 @@
+services:
+  n8n_importer:
+    image: n8nio/n8n:latest
+    container_name: n8n_migration_target
+    restart: unless-stopped
+    ports:
+      - "5679:5678" # Port for the target n8n instance
+    environment:
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PORT=${N8N_PORT:-5678}
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
+      - NODE_ENV=production
+      - WEBHOOK_URL=${WEBHOOK_URL:-http://localhost:5678/}
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-America/Los_Angeles}
+      - N8N_ENCRYPTION_KEY=${N8N_TARGET_ENCRYPTION_KEY} # IMPORTANT: Set this in .env file
+      # Add any other necessary n8n environment variables for your target instance
+      # e.g., database configuration if not using SQLite
+      # - DB_TYPE=postgresdb
+      # - DB_POSTGRESDB_HOST=db
+      # - DB_POSTGRESDB_PORT=5432
+      # - DB_POSTGRESDB_DATABASE=n8n
+      # - DB_POSTGRESDB_USER=n8n
+      # - DB_POSTGRESDB_PASSWORD=n8n
+    volumes:
+      - n8n_importer_data:/home/node/.n8n
+      - ./n8n_backups:/backups # Shared volume for backup files (place your .json exports here)
+    networks:
+      - n8n_migrate_net
+
+  migration_ui:
+    build: ./flask_app
+    container_name: n8n_migration_ui
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./n8n_backups:/app/n8n_backups # To list backup files from host
+      - /var/run/docker.sock:/var/run/docker.sock # To execute docker commands on n8n_importer
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=development # Change to production for actual deployment
+      - N8N_IMPORTER_CONTAINER_NAME=n8n_migration_target
+      - N8N_TARGET_ENCRYPTION_KEY=${N8N_TARGET_ENCRYPTION_KEY} # Pass key to UI for import commands
+    depends_on:
+      - n8n_importer
+    networks:
+      - n8n_migrate_net
+
+volumes:
+  n8n_importer_data:
+
+networks:
+  n8n_migrate_net:
+    driver: bridge
