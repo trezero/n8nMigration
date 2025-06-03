@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "skipLibCheck": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler", // Or "NodeNext" if more appropriate for your setup
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "noEmit": true // Typically true for tsconfig.node.json as it's for type checking build scripts
+  },
+  "include": [
+    "vite.config.ts", 
+    "vitest.config.ts", // If you create a separate vitest.config.ts
+    "tailwind.config.js", 
+    "postcss.config.js", 
+    ".eslintrc.cjs"
+  ]
+}
