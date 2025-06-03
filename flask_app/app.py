@@ -1,11 +1,13 @@
 import os
 import docker
 from flask import Flask, render_template, request, jsonify
+from flask_cors import CORS
 from dotenv import load_dotenv
 
 load_dotenv() # Load environment variables from .env file if present
 
 app = Flask(__name__)
+CORS(app) # Initialize CORS for all routes
 
 BACKUPS_DIR = '/app/n8n_backups' # This path is inside the migration_ui container
 N8N_IMPORTER_CONTAINER_NAME = os.getenv('N8N_IMPORTER_CONTAINER_NAME', 'n8n_migration_target')
@@ -89,12 +91,20 @@ def index():
     backup_items = get_backup_files()
     return render_template('index.html', backup_items=backup_items, n8n_key_set=bool(N8N_TARGET_ENCRYPTION_KEY))
 
+@app.route('/api/files', methods=['GET'])
+def api_get_backup_files():
+    backup_items = get_backup_files()
+    return jsonify(backup_items)
+
 @app.route('/import-workflows', methods=['POST'])
 def import_workflows():
     if not N8N_TARGET_ENCRYPTION_KEY:
         return jsonify({'success': False, 'message': 'N8N_TARGET_ENCRYPTION_KEY is not set. Cannot import.'}), 400
 
-    selected_files = request.form.getlist('workflow_files')
+    data = request.get_json()
+    if not data or 'workflow_files' not in data:
+        return jsonify({'success': False, 'message': 'Invalid JSON payload or missing workflow_files key.'}), 400
+    selected_files = data['workflow_files']
     if not selected_files:
         return jsonify({'success': False, 'message': 'No workflow files selected.'}), 400
 

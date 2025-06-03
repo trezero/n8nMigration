@@ -1,3 +1,4 @@
 Flask>=2.0
 python-dotenv>=0.19
+Flask-CORS>=0.3.4
 docker>=5.0
