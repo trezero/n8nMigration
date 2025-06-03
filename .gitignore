@@ -39,6 +39,36 @@ pip-log.txt
 pip-delete-this-directory.txt
 
 # Unit test / coverage reports
+
+# React App (n8n-migration-ui-react)
+# Node modules
+n8n-migration-ui-react/node_modules/
+
+# Build output
+n8n-migration-ui-react/dist/
+
+# Logs
+n8n-migration-ui-react/logs
+n8n-migration-ui-react/*.log
+n8n-migration-ui-react/npm-debug.log*
+n8n-migration-ui-react/yarn-debug.log*
+n8n-migration-ui-react/yarn-error.log*
+
+# Local environment variables
+n8n-migration-ui-react/.env.local
+n8n-migration-ui-react/.env.*.local
+
+# Coverage directory
+n8n-migration-ui-react/coverage/
+
+# OS generated files
+n8n-migration-ui-react/.DS_Store
+n8n-migration-ui-react/Thumbs.db
+
+# IDE directories
+n8n-migration-ui-react/.idea/
+n8n-migration-ui-react/.vscode/
+
 htmlcov/
 .tox/
 .nox/
