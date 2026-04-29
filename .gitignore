@@ -3,7 +3,47 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Secrets and credentials
+credentials.json
+*credentials*.json
+*.key
+*.pem
+*.p12
+*.pfx
+*.cer
+*.crt
+.secrets
+secrets.yaml
+secrets.yml
+secrets.json
+*.secret
+.password
+passwords.txt
+api_keys.txt
+.api-key
+*.token
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+.env.test
+
+# n8n specific files
 n8n_backups/
+workflows.json
+*_workflows.json
+n8n_data/
+.n8n/
+
+# Docker volumes and data
+docker-data/
+postgres-data/
+redis-data/
+*.db
+*.sqlite
 
 # C extensions
 *.so
@@ -194,3 +234,26 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Backup and temporary files
+*.bak
+*.tmp
+*.temp
+*~
+.~*
+~*
+
+# Local configuration
+config.local.json
+config.local.yaml
+local.config.js
+*.local.conf

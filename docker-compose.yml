@@ -24,6 +24,8 @@ services:
     volumes:
       - n8n_importer_data:/home/node/.n8n
       - ./n8n_backups:/backups # Shared volume for backup files (place your .json exports here)
+      - ./flask_app:/app # Shared volume for temporary import files written by migration_ui
+      - ./tmp_cli_imports:/cli_imports_mount # Shared volume for CLI importer temporary files
     networks:
       - n8n_migrate_net
 

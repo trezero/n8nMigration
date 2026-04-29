@@ -15,11 +15,12 @@
         .button:hover { background-color: #0056b3; }
         .button-secondary { background-color: #6c757d; }
         .button-secondary:hover { background-color: #545b62; }
-        .file-select { padding: 8px; margin-top: 5px; border-radius: 4px; border: 1px solid #ccc; width: 100%; box-sizing: border-box; }
+        .button-small { padding: 5px 10px; font-size: 12px; margin-left: 10px; }
         .message-area { margin-top: 20px; padding: 15px; border-radius: 4px; }
         .message-area.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .message-area.error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
         .warning { background-color: #fff3cd; color: #856404; padding: 10px; border-radius: 4px; margin-bottom: 15px; border: 1px solid #ffeeba;}
+        .list-container { max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; margin-bottom:10px; }
     </style>
 </head>
 <body>
@@ -39,40 +40,28 @@
 
         <h2>Import Workflows</h2>
         <form id="import-workflows-form">
-            <p>Select workflow backup files (.json) to import:</p>
-            {% set workflow_items = backup_items | selectattr('file_type', 'equalto', 'workflow') | list %}
-            {% if workflow_items %}
-                <ul>
-                {% for item in workflow_items %}
-                    <li>
-                        <input type="checkbox" name="workflow_files" value="{{ item.filename }}" id="wf-{{ loop.index }}">
-                        <label for="wf-{{ loop.index }}">{{ item.displayName }} ({{ item.filename }})</label>
-                    </li>
-                {% endfor %}
-                </ul>
-                <button type="submit" class="button">Import Selected Workflows</button>
-            {% else %}
-                <p>No workflow backup files found in <code>n8n_backups</code> directory. Add your exported workflow .json files there.</p>
-            {% endif %}
+            <p>Select workflows to import:</p>
+            <button type="button" class="button button-small" onclick="toggleSelectAll('workflows', true)">Select All</button>
+            <button type="button" class="button button-small button-secondary" onclick="toggleSelectAll('workflows', false)">Deselect All</button>
+            <div id="workflow-list-container" class="list-container">
+                <ul id="workflow-list"></ul>
+            </div>
+            <p id="no-workflows-message" style="display:none;">No workflows found in <code>workflows.json</code>.</p>
+            <button type="submit" class="button">Import Selected Workflows</button>
         </form>
 
         <hr style="margin: 30px 0;">
 
         <h2>Import Credentials</h2>
         <form id="import-credentials-form">
-            <p>Select the credentials backup file (.json) to import:</p>
-            {% set credential_items = backup_items | selectattr('file_type', 'equalto', 'credential') | list %}
-            {% if credential_items %}
-                <select name="credential_file" class="file-select">
-                    <option value="">-- Select Credentials File --</option>
-                    {% for item in credential_items %}
-                        <option value="{{ item.filename }}">{{ item.displayName }} ({{ item.filename }})</option>
-                    {% endfor %}
-                </select>
-                <button type="submit" class="button button-secondary">Import Credentials</button>
-            {% else %}
-                <p>No credential backup files found. Cannot select credentials file.</p>
-            {% endif %}
+            <p>Select credentials to import:</p>
+            <button type="button" class="button button-small" onclick="toggleSelectAll('credentials', true)">Select All</button>
+            <button type="button" class="button button-small button-secondary" onclick="toggleSelectAll('credentials', false)">Deselect All</button>
+            <div id="credential-list-container" class="list-container">
+                <ul id="credential-list"></ul>
+            </div>
+            <p id="no-credentials-message" style="display:none;">No credentials found in <code>credentials.json</code>.</p>
+            <button type="submit" class="button button-secondary">Import Selected Credentials</button>
         </form>
     </div>
 
@@ -84,37 +73,139 @@
             area.style.display = 'block';
         }
 
+        function toggleSelectAll(type, select) {
+            const checkboxes = document.querySelectorAll(`#${type}-list input[type='checkbox']`);
+            checkboxes.forEach(checkbox => checkbox.checked = select);
+        }
+
+        async function loadFiles() {
+            try {
+                const response = await fetch('/api/files');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+
+                const workflowList = document.getElementById('workflow-list');
+                const noWorkflowsMessage = document.getElementById('no-workflows-message');
+                workflowList.innerHTML = ''; // Clear existing
+                if (data.workflows && data.workflows.length > 0) {
+                    data.workflows.forEach((wf, index) => {
+                        const li = document.createElement('li');
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.name = 'selected_workflows';
+                        checkbox.value = JSON.stringify(wf.data); // Store full workflow data object
+                        checkbox.id = `wf-${wf.key || index}`;
+                        
+                        const label = document.createElement('label');
+                        label.htmlFor = checkbox.id;
+                        label.textContent = `${wf.name}`;
+                        
+                        li.appendChild(checkbox);
+                        li.appendChild(label);
+                        workflowList.appendChild(li);
+                    });
+                    noWorkflowsMessage.style.display = 'none';
+                } else {
+                    noWorkflowsMessage.style.display = 'block';
+                }
+
+                const credentialList = document.getElementById('credential-list');
+                const noCredentialsMessage = document.getElementById('no-credentials-message');
+                credentialList.innerHTML = ''; // Clear existing
+                if (data.credentials && data.credentials.length > 0) {
+                    data.credentials.forEach((cred, index) => {
+                        const li = document.createElement('li');
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.name = 'selected_credentials';
+                        checkbox.value = JSON.stringify(cred.data); // Store full credential data object
+                        checkbox.id = `cred-${cred.id || index}`;
+
+                        const label = document.createElement('label');
+                        label.htmlFor = checkbox.id;
+                        label.textContent = `${cred.name} (Type: ${cred.type})`;
+
+                        li.appendChild(checkbox);
+                        li.appendChild(label);
+                        credentialList.appendChild(li);
+                    });
+                    noCredentialsMessage.style.display = 'none';
+                } else {
+                    noCredentialsMessage.style.display = 'block';
+                }
+
+            } catch (error) {
+                console.error('Failed to load files:', error);
+                displayMessage('workflow-message-area', 'Error loading files. Check console for details.', false);
+                displayMessage('credential-message-area', 'Error loading files. Check console for details.', false);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadFiles);
+
         document.getElementById('import-workflows-form').addEventListener('submit', async function(event) {
             event.preventDefault();
-            const formData = new FormData(this);
-            const response = await fetch('/import-workflows', {
+            const selectedWorkflows = [];
+            document.querySelectorAll('#workflow-list input[type="checkbox"]:checked').forEach(cb => {
+                selectedWorkflows.push(JSON.parse(cb.value));
+            });
+
+            if (selectedWorkflows.length === 0) {
+                displayMessage('workflow-message-area', 'No workflows selected for import.', false);
+                return;
+            }
+
+            const response = await fetch('/api/import-workflows', {
                 method: 'POST',
-                body: formData
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ workflows_to_import: selectedWorkflows })
             });
             const result = await response.json();
             
             let messageHtml = '<h3>Workflow Import Results:</h3><ul>';
             if (result.results && Array.isArray(result.results)) {
                 result.results.forEach(item => {
-                    messageHtml += `<li><strong>${item.file}:</strong> ${item.success ? '✅ Success' : '❌ Error'} - ${item.message}</li>`;
+                    messageHtml += `<li><strong>${item.file || item.name || 'Workflow'}:</strong> ${item.success ? '✅ Success' : '❌ Error'} - ${item.message}</li>`;
                 });
+            } else if (result.message) {
+                 messageHtml += `<li>${result.message}</li>`;
             } else {
-                 messageHtml += `<li>${result.message || 'An unexpected error occurred.'}</li>`;
+                 messageHtml += `<li>An unexpected error occurred.</li>`;
             }
             messageHtml += '</ul>';
-            displayMessage('workflow-message-area', messageHtml, result.success);
+            // Determine overall success for message styling if possible, or default to true if any individual success
+            const overallSuccess = result.results ? result.results.some(r => r.success) : (result.success !== undefined ? result.success : false);
+            displayMessage('workflow-message-area', messageHtml, overallSuccess);
+            loadFiles(); // Refresh list
         });
 
         document.getElementById('import-credentials-form').addEventListener('submit', async function(event) {
             event.preventDefault();
-            const formData = new FormData(this);
-            const response = await fetch('/import-credentials', {
+            const selectedCredentials = [];
+            document.querySelectorAll('#credential-list input[type="checkbox"]:checked').forEach(cb => {
+                selectedCredentials.push(JSON.parse(cb.value));
+            });
+
+            if (selectedCredentials.length === 0) {
+                displayMessage('credential-message-area', 'No credentials selected for import.', false);
+                return;
+            }
+
+            const response = await fetch('/api/import-credentials', {
                 method: 'POST',
-                body: formData
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ credentials_to_import: selectedCredentials })
             });
             const result = await response.json();
             let messageHtml = `<strong>Credentials Import:</strong> ${result.success ? '✅ Success' : '❌ Error'} - ${result.message}`;
             displayMessage('credential-message-area', messageHtml, result.success);
+            loadFiles(); // Refresh list
         });
     </script>
 </body>
